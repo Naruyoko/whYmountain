@@ -232,11 +232,12 @@ function calcDiagonal(mountain){
       }
     }
     for (var i=0;i<mountain[height].length;i++){
+      if (height==3) debugger;
       if (lastTreeLevel.has(mountain[height][i].parentIndex)){
         var j=0;
         while (mountain[height+1][j].position<mountain[height][i].position-1) j++;
         treeLevel.add(j);
-        treeLevelParent.set(j,mountain[height][i].parentIndex+height);
+        treeLevelParent.set(j,mountain[height][mountain[height][i].parentIndex].position+height);
       }
     }
     for (var i=0;i<mountain[height+1].length;i++){
@@ -301,8 +302,9 @@ function calcDiagonal(mountain){
     if (p==pw[i]) r.push(t[i]);
     else r.push(t[i]+"v"+p);
   }
-  //console.log(gezandoIndexes);
-  //console.log(treeNodeIndexes);
+  console.log(gezandoIndexes);
+  console.log(treeNodeIndexes);
+  console.log(treeNodeParent);
   return r.join(",");
 }
 var ontabopen={};
