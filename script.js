@@ -1,9 +1,13 @@
 var canvas;
 var ctx;
+var cursorstr="▮";
 window.onload=function (){
   console.clear();
   canvas=dg("output");
   ctx=canvas.getContext("2d");
+  dg('input').onkeydown=handlekey;
+  dg('input').onfocus=handlekey;
+  dg('input').onmousedown=handlekey;
   load();
   draw(true);
 }
@@ -13,14 +17,25 @@ function dg(s){
 var calculatedMountains=null;
 function parseSequenceElement(s,i){
   if (s.indexOf("v")==-1||!isFinite(Number(s.substring(s.indexOf("v")+1)))){
+    var strexp;
+    var numval;
+    if(s.indexOf(cursorstr)==-1){
+      numval=Number(s);
+      strexp=s;
+    }else{
+      strexp=s;
+      numval=Number(s.substr(0,s.indexOf(cursorstr))+s.substr(s.indexOf(cursorstr)+1));
+    }
     return {
-      value:Number(s),
+      value:numval,
       position:i,
-      parentIndex:-1
+      parentIndex:-1,
+      strexp:strexp
     };
   }else{
     return {
       value:Number(s.substring(0,s.indexOf("v"))),
+      strexp:s.substring(0,s.indexOf("v")),
       position:i,
       parentIndex:Math.max(Math.min(i-1,Number(s.substring(s.indexOf("v")+1))),-1),
       forcedParent:true
@@ -30,7 +45,9 @@ function parseSequenceElement(s,i){
 function calc(s){
   //if (!/^(\d+,)*\d+$/.test(s)) throw Error("BAD");
   var lastLayer;
-  if (typeof s=="string") lastLayer=s.split(/[ ,]/g).map(parseSequenceElement);
+  if (typeof s=="string"){
+    lastLayer=s.split(/[ ,]/g).map(parseSequenceElement);
+  }
   else lastLayer=s;
   var calculatedMountain=[lastLayer]; //rows
   while (true){
@@ -89,7 +106,9 @@ function draw(recalculate){
   for (var i of options){
     window[i]=dg(i).value;
   }
-  if (recalculate) calculatedMountains=input.split(/\r?\n/g).map(calc);
+  var curpos=form.input.selectionStart;
+  inputc = input.substr(0,curpos)+cursorstr+input.substr(curpos);
+  if (recalculate) calculatedMountains=inputc.split(/\r?\n/g).map(calc);
   //plagiarized
   for (var cycle=0;cycle<2;cycle++){ //draw twice because image size
     ctx.fillStyle="white"; //clear
@@ -109,7 +128,7 @@ function draw(recalculate){
         var row=mountain[j];
         for (var k=0;k<row.length;k++){
           var point=row[k];
-          ctx.fillText(point.value,COLUMNWIDTH*(point.position*2+j+1)/2-ctx.measureText(point.value).width/2,by+ROWHEIGHT*(mountain.length-j)-3);
+          ctx.fillText(j==0?point.strexp:point.value,COLUMNWIDTH*(point.position*2+j+1)/2-ctx.measureText(point.value).width/2,by+ROWHEIGHT*(mountain.length-j)-3);
           if (j>0){
             ctx.beginPath();
             ctx.moveTo(COLUMNWIDTH*(point.position*2+j+2)/2,by+ROWHEIGHT*(mountain.length-j+1)-NUMBERSIZE*Math.min(LINEPLACE,1)-(ROWHEIGHT-NUMBERSIZE)*Math.max(LINEPLACE-1,0)-3);
@@ -356,4 +375,7 @@ var extractDiagonalModesCount=[1,5,10,100,Infinity];
 function toggleExtractDiagonalMode(){
   extractDiagonalMode=(extractDiagonalMode+1)%extractDiagonalModes.length;
   dg("toggleExtractDiagonalModeButton").textContent="Mode: "+extractDiagonalModes[extractDiagonalMode];
+}
+var handlekey=function(e){
+  setTimeout(draw,0,true);
 }
