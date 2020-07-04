@@ -1,6 +1,7 @@
 var canvas;
 var ctx;
 var cursorstr="▮";
+var cursorendstr="▯";
 window.onload=function (){
   console.clear();
   canvas=dg("output");
@@ -16,28 +17,34 @@ function dg(s){
 }
 var calculatedMountains=null;
 function parseSequenceElement(s,i){
-  if (s.indexOf("v")==-1||!isFinite(Number(s.substring(s.indexOf("v")+1)))){
-    var strexp;
-    var numval;
-    if(s.indexOf(cursorstr)==-1){
-      numval=Number(s);
-      strexp=s;
-    }else{
-      strexp=s;
-      numval=Number(s.substr(0,s.indexOf(cursorstr))+s.substr(s.indexOf(cursorstr)+1));
-    }
+  var strremoved=s;
+  if (strremoved.indexOf(cursorstr)!=-1){
+    strremoved=strremoved.substring(0,strremoved.indexOf(cursorstr))+strremoved.substring(strremoved.indexOf(cursorstr)+1);
+  }
+  if (strremoved.indexOf(cursorendstr)!=-1){
+    strremoved=strremoved.substring(0,strremoved.indexOf(cursorendstr))+strremoved.substring(strremoved.indexOf(cursorendstr)+1);
+  }
+  if (strremoved.indexOf("v")==-1||!isFinite(Number(strremoved.substring(strremoved.indexOf("v")+1)))){
+    var strexp=s;
+    var numval=Number(strremoved);
     return {
       value:numval,
+      strexp:strexp,
       position:i,
-      parentIndex:-1,
-      strexp:strexp
+      parentIndex:-1
     };
   }else{
+    var strexp;
+    if (s.indexOf(cursorstr)!=-1&&s.indexOf(cursorstr)>s.indexOf("v")||s.indexOf(cursorendstr)!=-1&&s.indexOf(cursorendstr)>s.indexOf("v")){
+      strexp=s;
+    }else{
+      strexp=s.substring(0,s.indexOf("v"));
+    }
     return {
-      value:Number(s.substring(0,s.indexOf("v"))),
-      strexp:s.substring(0,s.indexOf("v")),
+      value:Number(strremoved.substring(0,strremoved.indexOf("v"))),
+      strexp:strexp,
       position:i,
-      parentIndex:Math.max(Math.min(i-1,Number(s.substring(s.indexOf("v")+1))),-1),
+      parentIndex:Math.max(Math.min(i-1,Number(strremoved.substring(strremoved.indexOf("v")+1))),-1),
       forcedParent:true
     };
   }
@@ -96,18 +103,27 @@ function calc(s){
 }
 var options=["input","ROWHEIGHT","COLUMNWIDTH","LINETHICKNESS","NUMBERSIZE","NUMBERTHICKNESS","LINEPLACE"];
 var input="";
+var inputc="";
 var ROWHEIGHT=32;
 var COLUMNWIDTH=32;
 var LINETHICKNESS=2;
 var NUMBERSIZE=10;
 var NUMBERTHICKNESS=400;
 var LINEPLACE=1;
+var inputFocused=false;
 function draw(recalculate){
   for (var i of options){
     window[i]=dg(i).value;
   }
   var curpos=form.input.selectionStart;
-  inputc = input.substr(0,curpos)+cursorstr+input.substr(curpos);
+  var curendpos=form.input.selectionEnd;
+  if (!inputFocused){
+    inputc = input;
+  }else if (curpos==curendpos){
+    inputc = input.substring(0,curpos)+cursorstr+input.substring(curpos);
+  }else{
+    inputc = input.substring(0,curpos)+cursorstr+input.substring(curpos,curendpos)+cursorendstr+input.substring(curendpos);
+  }
   if (recalculate) calculatedMountains=inputc.split(/\r?\n/g).map(calc);
   //plagiarized
   for (var cycle=0;cycle<2;cycle++){ //draw twice because image size
@@ -128,7 +144,7 @@ function draw(recalculate){
         var row=mountain[j];
         for (var k=0;k<row.length;k++){
           var point=row[k];
-          ctx.fillText(j==0?point.strexp:point.value,COLUMNWIDTH*(point.position*2+j+1)/2-ctx.measureText(point.value).width/2,by+ROWHEIGHT*(mountain.length-j)-3);
+          ctx.fillText(j==0?point.strexp:point.value,COLUMNWIDTH*(point.position*2+j+1)/2-ctx.measureText(j==0?point.strexp:point.value).width/2,by+ROWHEIGHT*(mountain.length-j)-3);
           if (j>0){
             ctx.beginPath();
             ctx.moveTo(COLUMNWIDTH*(point.position*2+j+2)/2,by+ROWHEIGHT*(mountain.length-j+1)-NUMBERSIZE*Math.min(LINEPLACE,1)-(ROWHEIGHT-NUMBERSIZE)*Math.max(LINEPLACE-1,0)-3);
@@ -234,10 +250,13 @@ function calcDiagonal(mountain){
     }
     gezandoIndexes[height].unshift(lastIndex);
   }
-  var lastTreeLevel=new Set(gezandoIndexes[0]);
-  var treeNodeIndexes=[lastTreeLevel];
+  var lastTreeLevel=new Set();
   var treeLevelParent=new Map();
-  for (var i=0;i<mountain[0].length;i++) treeLevelParent.set(i,mountain[0][i].parentIndex);
+  for (var i=0;i<mountain[0].length;i++){
+    lastTreeLevel.add(i);
+    treeLevelParent.set(i,mountain[0][i].parentIndex);
+  }
+  var treeNodeIndexes=[lastTreeLevel];
   var treeNodeParent=[treeLevelParent];
   while (height<mountain.length-1){
     var treeLevel=new Set(gezandoIndexes[height+1]);
@@ -251,7 +270,6 @@ function calcDiagonal(mountain){
       }
     }
     for (var i=0;i<mountain[height].length;i++){
-      if (height==3) debugger;
       if (lastTreeLevel.has(mountain[height][i].parentIndex)){
         var j=0;
         while (mountain[height+1][j].position<mountain[height][i].position-1) j++;
@@ -359,7 +377,8 @@ function extractDiagonal(line){
       //console.log(diagonal);
       //console.log(lastSequenceText);
       if (diagonal==lastSequenceText) break;
-      if (!(Number(diagonal.split(",")[diagonal.split(",").length-1])>1)) break;
+      var lastItemOfDiagonal=diagonal.split(",")[diagonal.split(",").length-1];
+      if (!(Number(lastItemOfDiagonal.indexOf("v")==-1?lastItemOfDiagonal:lastItemOfDiagonal.substring(0,lastItemOfDiagonal.indexOf("v")))>1)) break;
       if (!diagonal.split(",").map(e=>e.indexOf("v")==-1?Number(e):Number(e.substring(0,e.indexOf("v")))).every(e=>isFinite(e)&&e>0)) break;
     }
     if (extractDiagonalMode==4&&Date.now()-startTime>5000) break;
