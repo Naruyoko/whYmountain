@@ -53,7 +53,7 @@ function calc(s){
   //if (!/^(\d+,)*\d+$/.test(s)) throw Error("BAD");
   var lastLayer;
   if (typeof s=="string"){
-    lastLayer=s.split(/[ ,]/g).map(parseSequenceElement);
+    lastLayer=s.split(/[\t ,]/g).map(parseSequenceElement);
   }
   else lastLayer=s;
   var calculatedMountain=[lastLayer]; //rows
@@ -111,6 +111,9 @@ var NUMBERSIZE=10;
 var NUMBERTHICKNESS=400;
 var LINEPLACE=1;
 var inputFocused=false;
+var timesDrawn=0;
+var finalDrawn=0;
+var doneDrawn=0;
 function draw(recalculate){
   for (var i of options){
     window[i]=dg(i).value;
@@ -124,56 +127,87 @@ function draw(recalculate){
   }else{
     inputc = input.substring(0,curpos)+cursorstr+input.substring(curpos,curendpos)+cursorendstr+input.substring(curendpos);
   }
-  if (recalculate) calculatedMountains=inputc.split(/\r?\n/g).map(calc);
-  //plagiarized
-  for (var cycle=0;cycle<2;cycle++){ //draw twice because image size
-    ctx.fillStyle="white"; //clear
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle="black";
-    ctx.strokeStyle="black";
-    ctx.lineWidth=+LINETHICKNESS;
-    ctx.font=NUMBERTHICKNESS+" "+NUMBERSIZE+"px Arial";
-    var x=0;
-    var y=0;
-    for (var i=0;i<calculatedMountains.length;i++){
-      var mountain=calculatedMountains[i];
-      var by=y;
-      x=Math.max(x,mountain[0].length*COLUMNWIDTH);
-      y+=mountain.length*ROWHEIGHT;
-      for (var j=0;j<mountain.length;j++){
-        var row=mountain[j];
-        for (var k=0;k<row.length;k++){
-          var point=row[k];
-          ctx.fillText(j==0?point.strexp:point.value,COLUMNWIDTH*(point.position*2+j+1)/2-ctx.measureText(j==0?point.strexp:point.value).width/2,by+ROWHEIGHT*(mountain.length-j)-3);
-          if (j>0){
-            ctx.beginPath();
-            ctx.moveTo(COLUMNWIDTH*(point.position*2+j+2)/2,by+ROWHEIGHT*(mountain.length-j+1)-NUMBERSIZE*Math.min(LINEPLACE,1)-(ROWHEIGHT-NUMBERSIZE)*Math.max(LINEPLACE-1,0)-3);
-            ctx.lineTo(COLUMNWIDTH*(point.position*2+j+1)/2,by+ROWHEIGHT*(mountain.length-j));
-            var l=0;
-            while (mountain[j-1][l].position!=point.position+1) l++;
-            ctx.lineTo(COLUMNWIDTH*(mountain[j-1][mountain[j-1][l].parentIndex].position*2+j)/2,by+ROWHEIGHT*(mountain.length-j+1)-NUMBERSIZE*Math.min(LINEPLACE,1)-(ROWHEIGHT-NUMBERSIZE)*Math.max(LINEPLACE-1,0)-3);
-            ctx.stroke();
-          }
+  if (recalculate) calculatedMountains=inputc.split(/\r?\n/g).filter(e=>e.substring(0,2)!="//"||e.indexOf(cursorstr)!=-1||e.indexOf(cursorendstr)!=-1).map(calc);
+  //get image size
+  var x=0;
+  var y=0;
+  for (var i=0;i<calculatedMountains.length;i++){
+    var mountain=calculatedMountains[i];
+    x=Math.max(x,mountain[0].length*COLUMNWIDTH);
+    y+=mountain.length*ROWHEIGHT;
+  }
+  //resize
+  canvas.width=x;
+  canvas.height=y;
+  ctx.fillStyle="white"; //clear
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="black";
+  ctx.strokeStyle="black";
+  ctx.lineWidth=+LINETHICKNESS;
+  ctx.font=NUMBERTHICKNESS+" "+NUMBERSIZE+"px Arial";
+  var by=0;
+  for (var i=0;i<calculatedMountains.length;i++){
+    var mountain=calculatedMountains[i];
+    for (var j=0;j<mountain.length;j++){
+      var row=mountain[j];
+      for (var k=0;k<row.length;k++){
+        var point=row[k];
+        ctx.fillText(j==0?point.strexp:point.value,COLUMNWIDTH*(point.position*2+j+1)/2-ctx.measureText(j==0?point.strexp:point.value).width/2,by+ROWHEIGHT*(mountain.length-j)-3);
+        if (j>0){
+          ctx.beginPath();
+          ctx.moveTo(COLUMNWIDTH*(point.position*2+j+2)/2,by+ROWHEIGHT*(mountain.length-j+1)-NUMBERSIZE*Math.min(LINEPLACE,1)-(ROWHEIGHT-NUMBERSIZE)*Math.max(LINEPLACE-1,0)-3);
+          ctx.lineTo(COLUMNWIDTH*(point.position*2+j+1)/2,by+ROWHEIGHT*(mountain.length-j));
+          var l=0;
+          while (mountain[j-1][l].position!=point.position+1) l++;
+          ctx.lineTo(COLUMNWIDTH*(mountain[j-1][mountain[j-1][l].parentIndex].position*2+j)/2,by+ROWHEIGHT*(mountain.length-j+1)-NUMBERSIZE*Math.min(LINEPLACE,1)-(ROWHEIGHT-NUMBERSIZE)*Math.max(LINEPLACE-1,0)-3);
+          ctx.stroke();
         }
       }
     }
-    //resize
-    var data=ctx.getImageData(0,0,x,y);
-    canvas.width=x;
-    canvas.height=y;
-    ctx.putImageData(data,0,0);
+    by+=mountain.length*ROWHEIGHT;
   }
   //enable save
-  outimg.width=canvas.width;
-  outimg.height=canvas.height;
-  outimg.src=canvas.toDataURL('image/jpg');
+  if (canvas.toBlob&&Promise){
+    timesDrawn++;
+    (function (timesDrawn){
+      new Promise(function (resolve,reject){
+        canvas.toBlob(
+          function callback(blob){
+            resolve(blob);
+          },
+          "image/png"
+        );
+      }).then(function (blob){
+        doneDrawn++;
+        if (timesDrawn>finalDrawn){
+          finalDrawn=timesDrawn;
+          outimg.src=URL.createObjectURL(blob);
+        }
+        updateDrawnStatus();
+      });
+    })(timesDrawn);
+  }else{
+    outimg.width=canvas.width;
+    outimg.height=canvas.height;
+    outimg.src=canvas.toDataURL('image/jpg');
+  }
+  updateDrawnStatus();
+}
+function updateDrawnStatus(){
+  var d=dg("drawStatus");
+  if (timesDrawn==doneDrawn){
+    d.style.display="none";
+  }else{
+    d.style.display="";
+    d.innerHTML="Rendering: "+finalDrawn+" - "+doneDrawn+"/"+timesDrawn;
+  }
 }
 window.onpopstate=function (e){
   load();
   draw(true);
 }
 function saveSimple(clipboard){
-  var encodedInput=input.split(/\r?\n/g).map(e=>e.split(/[ ,]/g).map(parseSequenceElement).map(e=>e.forcedParent?e.value+"v"+e.parentIndex:e.value)).join(";");
+  var encodedInput=input.split(/\r?\n/g).map(e=>e.split(/[\t ,]/g).filter(e=>e.substring(0,2)!="//"||e.indexOf(cursorstr)!=-1||e.indexOf(cursorendstr)!=-1).map(parseSequenceElement).map(e=>e.forcedParent?e.value+"v"+e.parentIndex:e.value)).join(";");
   history.pushState(encodedInput,"","?"+encodedInput);
   if (clipboard){
     var copyarea=dg("copyarea");
@@ -210,7 +244,7 @@ function load(){
     if (state.length%4) state+="=".repeat(4-state.length%4);
     state=JSON.parse(atob(state));
   }catch (e){ //simple
-    var input=encodedState.replace(/;/g,"\n");
+    var input=encodedState.replace(/;/g,"\r\n");
     dg("input").value=input;
   }finally{ //detailed
     console.log(state);
@@ -383,7 +417,7 @@ function extractDiagonal(line){
     }
     if (extractDiagonalMode==4&&Date.now()-startTime>5000) break;
     lastSequence=diagonal;
-    dg("input").value+="\n"+diagonal;
+    dg("input").value+="\r\n"+diagonal;
   }
   draw(true);
   ontabopen["extractDiagonal"]();
