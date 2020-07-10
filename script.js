@@ -2,6 +2,8 @@ var canvas;
 var ctx;
 var cursorstr="▮";
 var cursorendstr="▯";
+var lineBreakRegex=/\r?\n/g;
+var itemSeparatorRegex=/[\t ,]/g;
 window.onload=function (){
   console.clear();
   canvas=dg("output");
@@ -11,6 +13,10 @@ window.onload=function (){
   dg('input').onmousedown=handlekey;
   load();
   draw(true);
+  drawIntervalLoopFunc();
+}
+function drawIntervalLoopFunc(){
+  setTimeout(e=>draw(true)+drawIntervalLoopFunc(),100);
 }
 function dg(s){
   return document.getElementById(s);
@@ -53,7 +59,7 @@ function calc(s){
   //if (!/^(\d+,)*\d+$/.test(s)) throw Error("BAD");
   var lastLayer;
   if (typeof s=="string"){
-    lastLayer=s.split(/[\t ,]/g).map(parseSequenceElement);
+    lastLayer=s.split(itemSeparatorRegex).map(parseSequenceElement);
   }
   else lastLayer=s;
   var calculatedMountain=[lastLayer]; //rows
@@ -101,6 +107,13 @@ function calc(s){
   }
   return calculatedMountain;
 }
+function updateMountainString(){
+  for (var lines=inputc.split(lineBreakRegex),i=0;i<lines.length;i++){
+    for (var nums=lines[i].split(itemSeparatorRegex),j=0;j<nums.length;j++){
+      calculatedMountains[i][0][j].strexp=nums[j];
+    }
+  }
+}
 var options=["input","ROWHEIGHT","COLUMNWIDTH","LINETHICKNESS","NUMBERSIZE","NUMBERTHICKNESS","LINEPLACE"];
 var input="";
 var inputc="";
@@ -115,19 +128,26 @@ var timesDrawn=0;
 var finalDrawn=0;
 var doneDrawn=0;
 function draw(recalculate){
+  var inputChanged=input!=dg("input").value;
+  var optionChanged=false;
   for (var i of options){
+    if (window[i]!=dg(i).value) optionChanged=true;
     window[i]=dg(i).value;
   }
   var curpos=form.input.selectionStart;
   var curendpos=form.input.selectionEnd;
+  var newinputc;
   if (!inputFocused){
-    inputc = input;
+    newinputc = input;
   }else if (curpos==curendpos){
-    inputc = input.substring(0,curpos)+cursorstr+input.substring(curpos);
+    newinputc = input.substring(0,curpos)+cursorstr+input.substring(curpos);
   }else{
-    inputc = input.substring(0,curpos)+cursorstr+input.substring(curpos,curendpos)+cursorendstr+input.substring(curendpos);
+    newinputc = input.substring(0,curpos)+cursorstr+input.substring(curpos,curendpos)+cursorendstr+input.substring(curendpos);
   }
-  if (recalculate) calculatedMountains=inputc.split(/\r?\n/g).filter(e=>e.substring(0,2)!="//"||e.indexOf(cursorstr)!=-1||e.indexOf(cursorendstr)!=-1).map(calc);
+  if (!optionChanged&&inputc==newinputc) return;
+  inputc=newinputc;
+  if (recalculate&&inputChanged) calculatedMountains=inputc.split(lineBreakRegex).map(calc);
+  else updateMountainString();
   //get image size
   var x=0;
   var y=0;
@@ -167,7 +187,7 @@ function draw(recalculate){
     by+=mountain.length*ROWHEIGHT;
   }
   //enable save
-  if (canvas.toBlob&&Promise){
+  if (canvas.toBlob&&Promise&&URL&&URL.createObjectURL){
     timesDrawn++;
     (function (timesDrawn){
       new Promise(function (resolve,reject){
@@ -179,8 +199,9 @@ function draw(recalculate){
         );
       }).then(function (blob){
         doneDrawn++;
-        if (timesDrawn>finalDrawn){
+        if (blob&&timesDrawn>finalDrawn){
           finalDrawn=timesDrawn;
+          URL.revokeObjectURL(outimg.src);
           outimg.src=URL.createObjectURL(blob);
         }
         updateDrawnStatus();
@@ -189,7 +210,7 @@ function draw(recalculate){
   }else{
     outimg.width=canvas.width;
     outimg.height=canvas.height;
-    outimg.src=canvas.toDataURL('image/jpg');
+    outimg.src=canvas.toDataURL('image/png');
   }
   updateDrawnStatus();
 }
@@ -207,7 +228,7 @@ window.onpopstate=function (e){
   draw(true);
 }
 function saveSimple(clipboard){
-  var encodedInput=input.split(/\r?\n/g).map(e=>e.split(/[\t ,]/g).filter(e=>e.substring(0,2)!="//"||e.indexOf(cursorstr)!=-1||e.indexOf(cursorendstr)!=-1).map(parseSequenceElement).map(e=>e.forcedParent?e.value+"v"+e.parentIndex:e.value)).join(";");
+  var encodedInput=input.split(lineBreakRegex).map(e=>e.split(itemSeparatorRegex).map(parseSequenceElement).map(e=>e.forcedParent?e.value+"v"+e.parentIndex:e.value)).join(";");
   history.pushState(encodedInput,"","?"+encodedInput);
   if (clipboard){
     var copyarea=dg("copyarea");
@@ -390,7 +411,7 @@ function openTab(name){
 ontabopen["extractDiagonal"]=function (){
   var l=dg("extractDiagonal");
   l.innerHTML="";
-  var lines=input.split(/\r?\n/g);
+  var lines=input.split(lineBreakRegex);
   for (var i in lines){
     var d=document.createElement("li");
     var e=document.createElement("u");
