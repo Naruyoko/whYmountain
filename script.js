@@ -31,24 +31,17 @@ function parseSequenceElement(s,i){
     strremoved=strremoved.substring(0,strremoved.indexOf(cursorendstr))+strremoved.substring(strremoved.indexOf(cursorendstr)+1);
   }
   if (strremoved.indexOf("v")==-1||!isFinite(Number(strremoved.substring(strremoved.indexOf("v")+1)))){
-    var strexp=s;
     var numval=Number(strremoved);
     return {
       value:numval,
-      strexp:strexp,
+      strexp:getstrexp(s,strremoved),
       position:i,
       parentIndex:-1
     };
   }else{
-    var strexp;
-    if (s.indexOf(cursorstr)!=-1&&s.indexOf(cursorstr)>s.indexOf("v")||s.indexOf(cursorendstr)!=-1&&s.indexOf(cursorendstr)>s.indexOf("v")){
-      strexp=s;
-    }else{
-      strexp=s.substring(0,s.indexOf("v"));
-    }
     return {
       value:Number(strremoved.substring(0,strremoved.indexOf("v"))),
-      strexp:strexp,
+      strexp:getstrexp(s,strremoved),
       position:i,
       parentIndex:Math.max(Math.min(i-1,Number(strremoved.substring(strremoved.indexOf("v")+1))),-1),
       forcedParent:true
@@ -107,10 +100,30 @@ function calc(s){
   }
   return calculatedMountain;
 }
+function getstrexp(s,strremoved){
+  if (typeof strremoved=="undefined"){
+    strremoved=s;
+    if (strremoved.indexOf(cursorstr)!=-1){
+      strremoved=strremoved.substring(0,strremoved.indexOf(cursorstr))+strremoved.substring(strremoved.indexOf(cursorstr)+1);
+    }
+    if (strremoved.indexOf(cursorendstr)!=-1){
+      strremoved=strremoved.substring(0,strremoved.indexOf(cursorendstr))+strremoved.substring(strremoved.indexOf(cursorendstr)+1);
+    }
+  }
+  if (strremoved.indexOf("v")==-1||!isFinite(Number(strremoved.substring(strremoved.indexOf("v")+1)))){
+    return s;
+  }else{
+    if (s.indexOf(cursorstr)!=-1&&s.indexOf(cursorstr)>s.indexOf("v")||s.indexOf(cursorendstr)!=-1&&s.indexOf(cursorendstr)>s.indexOf("v")){
+      return s;
+    }else{
+      return s.substring(0,s.indexOf("v"));
+    }
+  }
+}
 function updateMountainString(){
   for (var lines=inputc.split(lineBreakRegex),i=0;i<lines.length;i++){
     for (var nums=lines[i].split(itemSeparatorRegex),j=0;j<nums.length;j++){
-      calculatedMountains[i][0][j].strexp=nums[j];
+      calculatedMountains[i][0][j].strexp=getstrexp(nums[j]);
     }
   }
 }
