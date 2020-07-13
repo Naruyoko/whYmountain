@@ -287,7 +287,7 @@ function load(){
     }
   }
 }
-function calcDiagonal(mountain){
+/*function calcDiagonal(mountain){
   if (typeof mountain=="string") mountain=calc(mountain);
   var height=0;
   var position=mountain[0].length-1;
@@ -410,6 +410,65 @@ function calcDiagonal(mountain){
   console.log(gezandoIndexes);
   console.log(treeNodeIndexes);
   console.log(treeNodeParent);
+  return r.join(",");
+}*/
+function calcDiagonal(mountain){
+  var diagonal=[];
+  var diagonalTree=[];
+  for (var i=0;i<mountain[0].length;i++){ //only one diagonal exists for each left-side-up diagonal line
+    for (var j=mountain.length-1;j>=0;j--){ //prioritize the top
+      var k=0;
+      while (mountain[j][k].position+j<i) k++;
+      if (mountain[j][k].position+j!=i) continue;
+      var height=j;
+      var lastIndex=k;
+      while (true){
+        if (height==0){
+          lastIndex=mountain[height][lastIndex].parentIndex;
+        }else{
+          var l=0; //find right-down
+          while (mountain[height-1][l].position!=mountain[height][lastIndex].position+1) l++;
+          l=mountain[height-1][l].parentIndex; //go to its parent=left-down
+          var m=0; //find up-left of that=left
+          while (mountain[height][m].position<mountain[height-1][m].position-1) m++;
+          if (mountain[height][m].position==mountain[height-1][m].position-1){ //left exists
+            lastIndex=m;
+          }else{
+            height--;
+            lastIndex=l;
+          }
+        }
+        if (!mountain[height][lastIndex]||mountain[height][lastIndex].parentIndex==-1){
+          diagonal.push(mountain[j][k].value);
+          diagonalTree.push(lastIndex+height);
+          break;
+        }
+      }
+      break;
+    }
+  }
+  var pw=[];
+  for (var i=0;i<diagonal.length;i++){
+    var p=-1;
+    for (var j=i-1;j>=0;j--){
+      if (diagonal[j]<diagonal[i]){
+        p=j;
+        break;
+      }
+    }
+    pw.push(p);
+  }
+  var r=[];
+  for (var i=0;i<diagonal.length;i++){
+    var p=i;
+    while (true){
+      p=diagonalTree[p];
+      if (p<0||diagonal[p]<diagonal[i]) break;
+    }
+    if (p==pw[i]) r.push(diagonal[i]);
+    else r.push(diagonal[i]+"v"+p);
+  }
+  console.log(diagonalTree);
   return r.join(",");
 }
 var ontabopen={};
