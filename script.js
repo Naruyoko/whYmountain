@@ -433,8 +433,8 @@ function calcDiagonal(mountain){
           while (mountain[height-1][l].position!=mountain[height][lastIndex].position+1) l++;
           l=mountain[height-1][l].parentIndex; //go to its parent=left-down
           var m=0; //find up-left of that=left
-          while (mountain[height][m].position<mountain[height-1][m].position-1) m++;
-          if (mountain[height][m].position==mountain[height-1][m].position-1){ //left exists
+          while (mountain[height][m].position<mountain[height-1][l].position-1) m++;
+          if (mountain[height][m].position==mountain[height-1][l].position-1){ //left exists
             lastIndex=m;
           }else{
             height--;
@@ -443,7 +443,7 @@ function calcDiagonal(mountain){
         }
         if (!mountain[height][lastIndex]||mountain[height][lastIndex].parentIndex==-1){
           diagonal.push(mountain[j][k].value);
-          diagonalTree.push(lastIndex+height);
+          diagonalTree.push((mountain[height][lastIndex]?mountain[height][lastIndex].position:-1)+height);
           break;
         }
       }
