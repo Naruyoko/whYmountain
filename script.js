@@ -48,7 +48,7 @@ function parseSequenceElement(s,i){
     };
   }
 }
-function calc(s){
+function calcMountain(s){
   //if (!/^(\d+,)*\d+$/.test(s)) throw Error("BAD");
   var lastLayer;
   if (typeof s=="string"){
@@ -60,7 +60,10 @@ function calc(s){
     //assign parents
     var hasNextLayer=false;
     for (var i=0;i<lastLayer.length;i++){
-      if (lastLayer[i].forcedParent) continue;
+      if (lastLayer[i].forcedParent){
+        if (lastLayer[i].parentIndex!=-1) hasNextLayer=true;
+        continue;
+      }
       var p;
       if (calculatedMountain.length==1){
         p=lastLayer[i].position+1;
@@ -159,7 +162,7 @@ function draw(recalculate){
   }
   if (!optionChanged&&inputc==newinputc) return;
   inputc=newinputc;
-  if (recalculate&&inputChanged) calculatedMountains=inputc.split(lineBreakRegex).map(calc);
+  if (recalculate&&inputChanged) calculatedMountains=inputc.split(lineBreakRegex).map(calcMountain);
   else updateMountainString();
   //get image size
   var x=0;
@@ -288,7 +291,7 @@ function load(){
   }
 }
 /*function calcDiagonal(mountain){
-  if (typeof mountain=="string") mountain=calc(mountain);
+  if (typeof mountain=="string") mountain=calcMountain(mountain);
   var height=0;
   var position=mountain[0].length-1;
   while (mountain[height+1]&&mountain[height+1][mountain[height+1].length-1].position==position-1){ //climb up to the peak
@@ -418,8 +421,8 @@ function calcDiagonal(mountain){
   for (var i=0;i<mountain[0].length;i++){ //only one diagonal exists for each left-side-up diagonal line
     for (var j=mountain.length-1;j>=0;j--){ //prioritize the top
       var k=0;
-      while (mountain[j][k].position+j<i) k++;
-      if (mountain[j][k].position+j!=i) continue;
+      while (mountain[j][k]&&mountain[j][k].position+j<i) k++;
+      if (!mountain[j][k]||mountain[j][k].position+j!=i) continue;
       var height=j;
       var lastIndex=k;
       while (true){
