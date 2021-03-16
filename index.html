@@ -4,39 +4,92 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>whY mountain</title>
+  <style>
+    #inputcontainer {
+      width:min(500px,calc(100% - 60px));
+      max-width:calc(100% - 10px);
+      height:60px;
+      display:block;
+      overflow:hidden;
+      background-color:white;
+      border:darkgray solid 1px;
+      position:fixed;
+      right:0;
+      resize:both;
+      direction:rtl;
+    }
+    .inputTab {
+      width:100%;
+      height:100%;
+      direction:ltr;
+    }
+    .sequenceTextContainer {
+      width:calc(100% - 8px);
+      height:calc(100% - 28px);
+      white-space:nowrap;
+      margin:0;
+      padding:4px;
+      padding-bottom:24px;
+      font-family:monospace;
+      font-size:13.5px;
+      overflow:auto;
+    }
+    #input {
+      text-align:left;
+      border:hidden;
+      resize:none;
+      padding-bottom:24px;
+    }
+    .inputFooterContainer {
+      margin:0;
+      bottom:0;
+      right:0;
+      position:absolute;
+    }
+  </style>
   <script src="./script.js"></script>
 </head>
 <body>
   <h1>whY mountain</h1>
   <form name=form>
-    <div id="inputcontainer" style="width:min(500px,calc(100% - 60px));max-width:calc(100% - 10px);height:60px;display:block;overflow:hidden;background-color:white;border:darkgray solid 1px;position:fixed;right:0;resize:both;direction:rtl;">
-      <div id="inputTab" style="width:100%;height:100%;direction:ltr;">
-        <textarea id="input" style="width:calc(100% - 8px);height:calc(100% - 28px);text-align:left;white-space:nowrap;margin:0;border:hidden;resize:none;font-family:monospace;font-size:13.5px;padding:4px;padding-bottom:24px;" oninput="requestAnimationFrame(function(){draw(true)})" onfocusin="inputFocused=true" onfocusout="inputFocused=false;draw(true);" contentEditable>1,2,4,8,10,7,12,14,12</textarea>
-        <div style="margin:0;bottom:0;right:0;position:absolute">
+    <div id="inputcontainer">
+      <div id="inputTab" class="inputTab">
+        <textarea id="input" class="sequenceTextContainer" oninput="requestDraw(true)" onfocusin="inputFocused=true" onfocusout="inputFocused=false;requestDraw(true);" contentEditable>1,2,4,8,10,7,12,14,12</textarea>
+        <div class="inputFooterContainer">
           <button type="button" onclick="openTab('extractDiagonal')">Extract Diagonal</button>
-          <button type="button" onclick="if(confirm('Clear sequences?')){dg('input').value='';draw(true);}">Clear</button>
+          <button type="button" onclick="openTab('expandOnSite')">Expand Sequence</button>
+          <button type="button" onclick="if(confirm('Clear sequences?')){dg('input').value='';requestDraw(true);}">Clear</button>
           <button type="button" onclick="dg('inputcontainer').style.display='none';dg('showinput').style.display='block';">Hide</button>
         </div>
       </div>
-      <div id="extractDiagonalTab" style="width:100%;height:100%;direction:ltr;display:none;">
-        <ul id="extractDiagonal" style="width:calc(100% - 8px);height:calc(100% - 28px);white-space:nowrap;margin:0;padding:4px;padding-bottom:24px;font-family:monospace;font-size:13.5px;overflow:auto;">
+      <div id="extractDiagonalTab" class="inputTab" style="display:none">
+        <ul id="extractDiagonal" class="sequenceTextContainer">
           <li onclick="extractDiagonal(0)">1,2,4,8,10,7,12,14,12</li>
         </ul>
-        <div style="margin:0;bottom:0;right:0;position:absolute">
+        <div class="inputFooterContainer">
           <button id="toggleExtractDiagonalModeButton" type="button" onclick="toggleExtractDiagonalMode()">Mode: once</button>
+          <button type="button" onclick="openTab('input')">Close</button>
+        </div>
+      </div>
+      <div id="expandOnSiteTab" class="inputTab" style="display:none">
+        <ul id="expandOnSite" class="sequenceTextContainer">
+          <li onclick="expandOnSite(0)">1,2,4,8,10,7,12,14,12</li>
+        </ul>
+        <div class="inputFooterContainer">
+          <input id="expandOnSiteBracketInput" type="number" min=0 max=10 step=1 value=3>
           <button type="button" onclick="openTab('input')">Close</button>
         </div>
       </div>
     </div>
     <button id="showinput" type="button" style="position:fixed;right:0;padding:4px;display:none" onclick="dg('inputcontainer').style.display='block';dg('showinput').style.display='none';">Show</button>
     <div style="width:calc(100% - 500px)">
-      <input id="ROWHEIGHT" style="width:150px" type="range" min=15 max=150 value=32 oninput="draw()">
-      <input id="COLUMNWIDTH" style="width:150px" type="range" min=15 max=150 value=32 oninput="draw()">
-      <input id="LINETHICKNESS" style="width:100px" type="range" min=1 max=15 value=1 oninput="draw()">
-      <input id="NUMBERSIZE" style="width:120px" type="range" min=4 max=96 value=10 oninput="draw()">
-      <input id="NUMBERTHICKNESS" style="width:80px" type="range" min=100 max=900 value=400 step=100 oninput="draw()">
-      <input id="LINEPLACE" style="width:120px" type="range" min=0 max=2 value=1 step=0.01 oninput="draw()">
-      <input type="button" value="Draw" onclick="draw(true)">
+      <input id="ROWHEIGHT" style="width:150px" type="range" min=15 max=150 value=32 oninput="requestDraw()">
+      <input id="COLUMNWIDTH" style="width:150px" type="range" min=15 max=150 value=32 oninput="requestDraw()">
+      <input id="LINETHICKNESS" style="width:100px" type="range" min=1 max=15 value=1 oninput="requestDraw()">
+      <input id="NUMBERSIZE" style="width:120px" type="range" min=4 max=96 value=10 oninput="requestDraw()">
+      <input id="NUMBERTHICKNESS" style="width:80px" type="range" min=100 max=900 value=400 step=100 oninput="requestDraw()">
+      <input id="LINEPLACE" style="width:120px" type="range" min=0 max=2 value=1 step=0.01 oninput="requestDraw()">
+      <input type="button" value="Draw" onclick="requestDraw(true)">
       <input type="button" value="Save (Simple)" onclick="saveSimple(true)">
       <input type="button" value="Save (Detailed)" onclick="saveDetailed(true)">
       <div id="drawStatus" style="display:none;position:fixed;top:0;right:0;"></div>
@@ -46,6 +99,7 @@
   <canvas id="output" width=640 height=960 style="display:none"></canvas>
   <img id='outimg' style='border-style:none;border-width:1px'>
   <div>Y sequence by Yukito</div>
-  <div>Version upper-branching diagonal-extracting cursor.2.2</div>
+  <div>Expansion by itself &rarr; <a href="https://naruyoko.github.io/YNySequence/">https://naruyoko.github.io/YNySequence/</a></div>
+  <div>Version upper-branching diagonal-extracting cursor-crawling expanding</div>
 </body>
 </html>

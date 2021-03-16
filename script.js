@@ -12,11 +12,34 @@ window.onload=function (){
   dg('input').onfocus=handlekey;
   dg('input').onmousedown=handlekey;
   load();
-  draw(true);
+  requestDraw(true);
   drawIntervalLoopFunc();
+  setInterval(function(){if(hasRequestedDraw&&Date.now()-lastDrawByRequest>=1000)requestAnimationFrame(_processDrawRequest);},100);
 }
 function drawIntervalLoopFunc(){
-  setTimeout(e=>draw(true)+drawIntervalLoopFunc(),100);
+  setTimeout(function(){if(document.activeElement==dg("input"))requestDraw(true);drawIntervalLoopFunc();},100);
+}
+var hasRequestedDraw=false;
+var hasRequestedRecalculation=false;
+var lastDrawByRequest=Date.now();
+function requestDraw(recalculate){
+  hasRequestedRecalculation=hasRequestedRecalculation||recalculate;
+  if (!hasRequestedDraw){
+    requestAnimationFrame(_processDrawRequest);
+    hasRequestedDraw=true;
+  }
+}
+function _processDrawRequest(){
+  if (timesDrawn-doneDrawn>50) return;
+  lastDrawByRequest=Date.now();
+  try{
+    draw(hasRequestedRecalculation);
+  }catch(e){
+    requestAnimationFrame(_processDrawRequest);
+    throw e;
+  }
+  hasRequestedDraw=false;
+  hasRequestedRecalculation=false;
 }
 function dg(s){
   return document.getElementById(s);
@@ -241,7 +264,7 @@ function updateDrawnStatus(){
 }
 window.onpopstate=function (e){
   load();
-  draw(true);
+  requestDraw(true);
 }
 function saveSimple(clipboard){
   var encodedInput=input.split(lineBreakRegex).map(e=>e.split(itemSeparatorRegex).map(parseSequenceElement).map(e=>e.forcedParent?e.value+"v"+e.parentIndex:e.value)).join(";");
@@ -290,131 +313,6 @@ function load(){
     }
   }
 }
-/*function calcDiagonal(mountain){
-  if (typeof mountain=="string") mountain=calcMountain(mountain);
-  var height=0;
-  var position=mountain[0].length-1;
-  while (mountain[height+1]&&mountain[height+1][mountain[height+1].length-1].position==position-1){ //climb up to the peak
-    height++;
-    position--;
-  }
-  var lastIndex=mountain[height].length-1;
-  var gezandoIndexes=[[lastIndex]]; //indexes of gezando nodes
-  while (gezandoIndexes.length<=height) gezandoIndexes.unshift([]);
-  while (true){
-    if (height===0){
-      if (lastIndex===0) break;
-      lastIndex--;
-    }else{
-      var i=0; //find right-down
-      while (mountain[height-1][i].position!=mountain[height][lastIndex].position+1) i++;
-      i=mountain[height-1][i].parentIndex; //go to its parent=left-down
-      var j=0; //find up-left of that=left
-      while (mountain[height][j].position<mountain[height-1][i].position-1) j++;
-      if (mountain[height][j].position==mountain[height-1][i].position-1){ //left exists
-        lastIndex=j;
-        gezandoIndexes[height-1].unshift(i);
-      }else{
-        height--;
-        lastIndex=i;
-      }
-    }
-    gezandoIndexes[height].unshift(lastIndex);
-  }
-  var lastTreeLevel=new Set();
-  var treeLevelParent=new Map();
-  for (var i=0;i<mountain[0].length;i++){
-    lastTreeLevel.add(i);
-    treeLevelParent.set(i,mountain[0][i].parentIndex);
-  }
-  var treeNodeIndexes=[lastTreeLevel];
-  var treeNodeParent=[treeLevelParent];
-  while (height<mountain.length-1){
-    var treeLevel=new Set(gezandoIndexes[height+1]);
-    var treeLevelParent=new Map();
-    if (gezandoIndexes[height+1]){
-      for (var i=0;i<gezandoIndexes[height+1].length;i++){
-        var j=0; //find right-down
-        while (mountain[height][j].position!=mountain[height+1][i].position+1) j++;
-        j=mountain[height][j].parentIndex; //go to its parent=left-down
-        treeLevelParent.set(i,mountain[height][j].position+height);
-      }
-    }
-    for (var i=0;i<mountain[height].length;i++){
-      if (lastTreeLevel.has(mountain[height][i].parentIndex)){
-        var j=0;
-        while (mountain[height+1][j].position<mountain[height][i].position-1) j++;
-        treeLevel.add(j);
-        treeLevelParent.set(j,mountain[height][mountain[height][i].parentIndex].position+height);
-      }
-    }
-    for (var i=0;i<mountain[height+1].length;i++){
-      var j=0; //find right-down
-      while (mountain[height][j].position!=mountain[height+1][i].position+1) j++;
-      j=mountain[height][j].parentIndex; //go to its parent=left-down
-      var k=0; //find up-left of that=left
-      while (mountain[height+1][k].position<mountain[height][j].position-1) k++;
-      if (mountain[height+1][k].position==mountain[height][j].position-1){ //left exists
-        treeLevel.add(i);
-        treeLevelParent.set(i,mountain[height+1][k].position+height+1);
-      }
-    }
-    lastTreeLevel=treeLevel;
-    treeNodeIndexes.push(lastTreeLevel);
-    treeNodeParent.push(treeLevelParent);
-    height++;
-  }
-  var t=[];
-  var ts=[];
-  var th=[];
-  var tps=[];
-  for (var i=0;i<mountain[0].length;i++){ //only one diagonal exists for each left-side-up diagonal line
-    for (var j=mountain.length-1;j>=0;j--){ //prioritize the top
-      var found=false;
-      for (var k=mountain[j].length-1;k>=0;k--){
-        if (treeNodeIndexes[j].has(k)&&mountain[j][k].position+j==i){
-          t.push(mountain[j][k].value);
-          ts.push(i);
-          th.push(j);
-          tps.push(treeNodeParent[j].get(k));
-          found=true;
-          break;
-        }
-      }
-      if (found) break;
-    }
-  }
-  var pw=[];
-  for (var i=0;i<t.length;i++){
-    var p=-1;
-    for (var j=i-1;j>=0;j--){
-      if (t[j]<t[i]){
-        p=j;
-        break;
-      }
-    }
-    pw.push(p);
-  }
-  var r=[];
-  for (var i=0;i<t.length;i++){
-    var p=-1;
-    var ps=ts[i];
-    while (true){
-      ps=tps[ts.indexOf(ps)];
-      if (ps<0) break;
-      if (t[ps]<t[i]&&th[ps]<=th[i]){
-        p=ps;
-        break;
-      }
-    }
-    if (p==pw[i]) r.push(t[i]);
-    else r.push(t[i]+"v"+p);
-  }
-  console.log(gezandoIndexes);
-  console.log(treeNodeIndexes);
-  console.log(treeNodeParent);
-  return r.join(",");
-}*/
 function calcDiagonal(mountain){
   var diagonal=[];
   var diagonalTree=[];
@@ -474,8 +372,269 @@ function calcDiagonal(mountain){
   console.log(diagonalTree);
   return r.join(",");
 }
+
+//By itself -> https://naruyoko.github.io/YNySequence/
+function cloneMountain(mountain){
+  var newMountain=[];
+  for (var i=0;i<mountain.length;i++){
+    var layer=[];
+    for (var j=0;j<mountain[i].length;j++){
+      layer.push({
+        value:mountain[i][j].value,
+        position:mountain[i][j].position,
+        parentIndex:mountain[i][j].parentIndex,
+        forcedParent:mountain[i][j].forcedParent
+      });
+    }
+    newMountain.push(layer);
+  }
+  return newMountain;
+}
+function getBadRoot(s){
+  var mountain;
+  if (typeof s=="string") mountain=calcMountain(s);
+  else mountain=cloneMountain(s);
+  var diagonal=calcMountain(calcDiagonal(mountain));
+  if (diagonal[0][diagonal[0].length-1].value!=1){
+    return getBadRoot(diagonal);
+  }else{
+    for (var i=mountain.length-1;i>=0;i--){
+      if (mountain[i][mountain[i].length-1].position+i==mountain[0].length-1) return mountain[i-1][mountain[i-1][mountain[i-1].length-1].parentIndex].position+i-1;
+    }
+  }
+}
+function expand(s,n,stringify){
+  var mountain;
+  if (typeof s=="string") mountain=calcMountain(s);
+  else mountain=cloneMountain(s);
+  var result=cloneMountain(mountain);
+  if (mountain[0][mountain[0].length-1].parentIndex==-1){
+    result[0].pop();
+  }else{
+    var result=cloneMountain(mountain);
+    var cutHeight=mountain.length-1;
+    while (mountain[cutHeight][mountain[cutHeight].length-1].position+cutHeight!=mountain[0].length-1) cutHeight--;
+    var actualCutHeight=cutHeight;
+    var badRootSeam=getBadRoot(mountain);
+    var badRootHeight;
+    var diagonal=calcMountain(calcDiagonal(mountain));
+    var newDiagonal;
+    var yamakazi=diagonal[0][diagonal[0].length-1].value==1; //Yamakazi-Funka dualilty
+    if (yamakazi){
+      newDiagonal=cloneMountain(diagonal);
+      newDiagonal[0].pop();
+      for (var i=0;i<n;i++){
+        for (var j=badRootSeam;j<mountain[0].length-1;j++){
+          newDiagonal[0].push(newDiagonal[0][j]); //who cares about mountains in diagonal?
+        }
+      }
+      cutHeight--;
+      badRootHeight=cutHeight;
+    }else{
+      newDiagonal=expand(diagonal,n,false);
+      badRootHeight=mountain.length-1;
+      while (true){
+        var i=0;
+        while (mountain[badRootHeight][i]&&mountain[badRootHeight][i].position+badRootHeight<badRootSeam) i++;
+        if (mountain[badRootHeight][i]&&mountain[badRootHeight][i].position+badRootHeight==badRootSeam) break;
+        badRootHeight--;
+      }
+    }
+    for (var i=0;i<=actualCutHeight;i++) result[i].pop(); //cut child
+    if (!result[result.length-1].length) result.pop();
+    var afterCutHeight=result.length;
+    var afterCutMountain=cloneMountain(result);
+    var afterCutLength=result[0].length;
+    var badRootSeamHeight=afterCutHeight-1;
+    while (true){
+      var l=0;
+      while (mountain[badRootSeamHeight][l]&&mountain[badRootSeamHeight][l].position+badRootSeamHeight<badRootSeam) l++;
+      if (mountain[badRootSeamHeight][l]&&mountain[badRootSeamHeight][l].position+badRootSeamHeight==badRootSeam) break;
+      badRootSeamHeight--;
+    }
+    badRootSeamHeight++;
+    //Create Mt.Fuji shell
+    for (var i=1;i<=n;i++){ //iteration
+      for (var j=badRootSeam;j<afterCutLength;j++){ //seam
+        var isAscending;
+        var p=0; //simplified; may not work
+        while (mountain[badRootHeight][p].position+badRootHeight<j) p++;
+        if (mountain[badRootHeight][p].position+badRootHeight==j){
+          while (true){
+            if (!mountain[badRootHeight][p]||mountain[badRootHeight][p].position+badRootHeight<badRootSeam){
+              isAscending=false;
+              break;
+            }
+            if (mountain[badRootHeight][p].position+badRootHeight==badRootSeam){
+              isAscending=true;
+              break;
+            }
+            p=mountain[badRootHeight][p].parentIndex;
+          }
+        }else{
+          isAscending=false;
+        }
+        var seamHeight=afterCutHeight-1;
+        while (true){
+          var l=0;
+          while (mountain[seamHeight][l]&&mountain[seamHeight][l].position+seamHeight<j) l++;
+          if (mountain[seamHeight][l]&&mountain[seamHeight][l].position+seamHeight==j) break;
+          seamHeight--;
+        }
+        seamHeight++;
+        var isReplacingCut=j==badRootSeam;
+        //console.log([j,seamHeight]);
+        if (isAscending){
+          for (var k=0;k<seamHeight+(cutHeight-badRootHeight)*i;k++){
+            if (!result[k]) result.push([]);
+            if (k<badRootHeight){ //Bb
+              var sy=k;
+              var sx;
+              if (isReplacingCut){
+                sx=mountain[sy].length-1;
+              }else{
+                sx=0;
+                while (mountain[sy][sx].position+sy<j) sx++;
+              }
+              var sourceParentIndex=mountain[sy][sx].parentIndex;
+              var parentShifts=i-isReplacingCut;
+              var parentPosition=mountain[sy][sourceParentIndex]?mountain[sy][sourceParentIndex].position+parentShifts*(afterCutLength-badRootSeam)*(mountain[sy][sourceParentIndex].position+sy>=badRootSeam)-(k-sy):-1;
+              var parentIndex=0;
+              while (result[k][parentIndex]&&result[k][parentIndex].position<parentPosition) parentIndex++;
+              if (!result[k][parentIndex]||result[k][parentIndex].position!=parentPosition) parentIndex=-1;
+              result[k].push({
+                value:parentIndex==-1?newDiagonal[0][j+(afterCutLength-badRootSeam)*i].value:NaN,
+                position:j+(afterCutLength-badRootSeam)*i-k,
+                parentIndex:parentIndex,
+                forcedParent:mountain[sy][sx].forcedParent
+              });
+            }else if (k<=badRootHeight+(cutHeight-badRootHeight)*(i-isReplacingCut)){ //Br replace
+              var sy=badRootHeight;
+              var sx;
+              if (!yamakazi&&isReplacingCut){
+                sx=mountain[sy].length-1;
+              }else{
+                sx=0;
+                while (mountain[sy][sx].position+sy<j) sx++;
+              }
+              var sourceParentIndex=mountain[sy][sx].parentIndex;
+              var parentShifts=i-isReplacingCut;
+              var parentPosition=mountain[sy][sourceParentIndex]?mountain[sy][sourceParentIndex].position+parentShifts*(afterCutLength-badRootSeam)*(mountain[sy][sourceParentIndex].position+sy>=badRootSeam)-(k-sy):-1;
+              var parentIndex=0;
+              while (result[k][parentIndex]&&result[k][parentIndex].position<parentPosition) parentIndex++;
+              if (!result[k][parentIndex]||result[k][parentIndex].position!=parentPosition) parentIndex=-1;
+              result[k].push({
+                value:parentIndex==-1?newDiagonal[0][j+(afterCutLength-badRootSeam)*i].value:NaN,
+                position:j+(afterCutLength-badRootSeam)*i-k,
+                parentIndex:parentIndex,
+                forcedParent:mountain[sy][sx].forcedParent
+              });
+            }else if (isReplacingCut&&k<=badRootHeight+(cutHeight-badRootHeight)*i){ //Br extend
+              var sy=k-(cutHeight-badRootHeight)*(i-1);
+              var sx;
+              if (!yamakazi&&isReplacingCut){
+                sx=mountain[sy].length-1;
+              }else{
+                sx=0;
+                while (mountain[sy][sx].position+sy<j) sx++;
+              }
+              var sourceParentIndex=mountain[sy][sx].parentIndex;
+              var parentShifts=i-isReplacingCut;
+              var parentPosition=mountain[sy][sourceParentIndex]?mountain[sy][sourceParentIndex].position+parentShifts*(afterCutLength-badRootSeam)*(mountain[sy][sourceParentIndex].position+sy>=badRootSeam)-(k-sy):-1;
+              var parentIndex=0;
+              while (result[k][parentIndex]&&result[k][parentIndex].position<parentPosition) parentIndex++;
+              if (!result[k][parentIndex]||result[k][parentIndex].position!=parentPosition) parentIndex=-1;
+              result[k].push({
+                value:parentIndex==-1?newDiagonal[0][j+(afterCutLength-badRootSeam)*i].value:NaN,
+                position:j+(afterCutLength-badRootSeam)*i-k,
+                parentIndex:parentIndex,
+                forcedParent:mountain[sy][sx].forcedParent
+              });
+            }else{ //Be
+              //if (isReplacingCut) console.warn("Climbing doesn't all the way. Makes sense.");
+              var sy=k-(cutHeight-badRootHeight)*i;
+              var sx;
+              if (!yamakazi&&isReplacingCut){
+                sx=mountain[sy].length-1;
+              }else{
+                sx=0;
+                while (mountain[sy][sx].position+sy<j) sx++;
+              }
+              var sourceParentIndex=mountain[sy][sx].parentIndex;
+              var parentShifts=i-isReplacingCut;
+              var parentPosition=mountain[sy][sourceParentIndex]?mountain[sy][sourceParentIndex].position+parentShifts*(afterCutLength-badRootSeam)*(mountain[sy][sourceParentIndex].position+sy>=badRootSeam)-(k-sy):-1;
+              var parentIndex=0;
+              while (result[k][parentIndex]&&result[k][parentIndex].position<parentPosition) parentIndex++;
+              if (!result[k][parentIndex]||result[k][parentIndex].position!=parentPosition) parentIndex=-1;
+              result[k].push({
+                value:parentIndex==-1?newDiagonal[0][j+(afterCutLength-badRootSeam)*i].value:NaN,
+                position:j+(afterCutLength-badRootSeam)*i-k,
+                parentIndex:parentIndex,
+                forcedParent:mountain[sy][sx].forcedParent
+              });
+            }
+          }
+        }else{
+          if (isReplacingCut) console.warn("Cut child and not connected to bad root. Makes sense.");
+          for (var k=0;k<seamHeight;k++){
+            if (!result[k]) result.push([]);
+            //if statement is here to line up indents
+            if (true){ //Bb
+              var sy=k;
+              var sx;
+              if (isReplacingCut){
+                sx=mountain[sy].length-1;
+              }else{
+                sx=0;
+                while (mountain[sy][sx].position+sy<j) sx++;
+              }
+              var sourceParentIndex=mountain[sy][sx].parentIndex;
+              var parentShifts=i-isReplacingCut;
+              var parentPosition=mountain[sy][sourceParentIndex]?mountain[sy][sourceParentIndex].position+parentShifts*(afterCutLength-badRootSeam)*(mountain[sy][sourceParentIndex].position+sy>=badRootSeam)-(k-sy):-1;
+              var parentIndex=0;
+              while (result[k][parentIndex]&&result[k][parentIndex].position<parentPosition) parentIndex++;
+              if (!result[k][parentIndex]||result[k][parentIndex].position!=parentPosition) parentIndex=-1;
+              result[k].push({
+                value:parentIndex==-1?newDiagonal[0][j+(afterCutLength-badRootSeam)*i].value:NaN,
+                position:j+(afterCutLength-badRootSeam)*i-k,
+                parentIndex:parentIndex,
+                forcedParent:mountain[sy][sx].forcedParent
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+  //Build number from ltr, ttb
+  for (var i=result.length-1;i>=0;i--){
+    if (!result[i].length){
+      result.pop();
+      continue;
+    }
+    for (var j=0;j<result[i].length;j++){
+      if (!isNaN(result[i][j].value)) continue;
+      var k=0; //find left-up
+      while (result[i+1][k].position<result[i][j].position-1) k++;
+      if (result[i+1][k].position!=result[i][j].position-1) throw Error("Mountain not complete");
+      result[i][j].value=result[i][result[i][j].parentIndex].value+result[i+1][k].value;
+    }
+  }
+  var rr;
+  if (stringify){
+    rr=[];
+    for (var i=0;result[0]&&i<result[0].length;i++){
+      rr.push(result[0][i].value+(result[0].forcedParent?"v"+result[0].parentIndex:""));
+    }
+    rr=rr.join(",");
+  }else{
+    rr=result;
+  }
+  return rr;
+}
+
 var ontabopen={};
-var tabs=["input","extractDiagonal"];
+var tabs=["input","extractDiagonal","expandOnSite"];
 function openTab(name){
   for (var i of tabs){
     dg(i+"Tab").style.display="none";
@@ -486,7 +645,7 @@ function openTab(name){
 ontabopen["extractDiagonal"]=function (){
   var l=dg("extractDiagonal");
   l.innerHTML="";
-  var lines=input.split(lineBreakRegex);
+  var lines=dg("input").value.split(lineBreakRegex);
   for (var i in lines){
     var d=document.createElement("li");
     var e=document.createElement("u");
@@ -498,24 +657,21 @@ ontabopen["extractDiagonal"]=function (){
 }
 function extractDiagonal(line){
   var startTime=Date.now();
-  var lastSequence=calculatedMountains[line];
+  var lastSequence=dg("input").value.split(lineBreakRegex)[line];
   for (var cycles=0;cycles<extractDiagonalModesCount[extractDiagonalMode];cycles++){
-    var diagonal=calcDiagonal(lastSequence);
+    var diagonal=calcDiagonal(calcMountain(lastSequence));
     if (cycles>0){
       var lastSequenceText=lastSequence;
-      if (lastSequence instanceof Array) lastSequenceText=lastSequence[0].map(e=>e.forcedParent?e.value+"v"+e.parentIndex:e.value).join(",");
-      //console.log(diagonal);
-      //console.log(lastSequenceText);
       if (diagonal==lastSequenceText) break;
-      var lastItemOfDiagonal=diagonal.split(",")[diagonal.split(",").length-1];
-      if (!(Number(lastItemOfDiagonal.indexOf("v")==-1?lastItemOfDiagonal:lastItemOfDiagonal.substring(0,lastItemOfDiagonal.indexOf("v")))>1)) break;
-      if (!diagonal.split(",").map(e=>e.indexOf("v")==-1?Number(e):Number(e.substring(0,e.indexOf("v")))).every(e=>isFinite(e)&&e>0)) break;
+      var lastItemOfDiagonal=parseSequenceElement(diagonal.slice(diagonal.lastIndexOf(",")+1));
+      if (!(lastItemOfDiagonal.value>1)) break;
+      if (!diagonal.split(",").map(parseSequenceElement).every(function(e){return isFinite(e.value)&&e.value>0;})) break;
     }
     if (extractDiagonalMode==4&&Date.now()-startTime>5000) break;
     lastSequence=diagonal;
     dg("input").value+="\r\n"+diagonal;
   }
-  draw(true);
+  requestDraw(true);
   ontabopen["extractDiagonal"]();
 }
 var extractDiagonalMode=0;
@@ -525,6 +681,40 @@ function toggleExtractDiagonalMode(){
   extractDiagonalMode=(extractDiagonalMode+1)%extractDiagonalModes.length;
   dg("toggleExtractDiagonalModeButton").textContent="Mode: "+extractDiagonalModes[extractDiagonalMode];
 }
+ontabopen["expandOnSite"]=function (){
+  var l=dg("expandOnSite");
+  l.innerHTML="";
+  var lines=dg("input").value.split(lineBreakRegex);
+  for (var i in lines){
+    var d=document.createElement("li");
+    var e=document.createElement("u");
+    e.textContent=lines[i];
+    e.onclick=new Function("expandOnSite("+i+")");
+    d.appendChild(e);
+    l.appendChild(d);
+  }
+}
+function expandOnSite(line){
+  var sequence=dg("input").value.split(lineBreakRegex)[line];
+  var n=+dg("expandOnSiteBracketInput").value;
+  if (!Number.isFinite(n)||n<0) n=0;
+  if (n>1000000) n=1000000;
+  n=Math.floor(n);
+  if (n>10&&!confirm("n specified is big. Are you sure you want to continue?\n指定されたnは大きいです。本当に実行しますか?")) return;
+  var mountain=calcMountain(sequence);
+  if ((mountain[0][0].value!=1||mountain[0].some(function(e){return !Number.isFinite(e.value)||!Number.isInteger(e.value)||e.value<1||!Number.isFinite(e.parentIndex)||!Number.isInteger(e.parentIndex)||e.parentIndex<-1||e.parentIndex>=mountain[0].length;}))&&!confirm("The sequence is not in domain of Y sequence. An unexpected behavior may occur. Are you sure you want to continue?\nこの数列はY数列の定義外です。本当に実行しますか?")) return;
+  var diagonalLayers=0;
+  var deepestDiagonal=mountain;
+  while (diagonalLayers<50&&deepestDiagonal[0][deepestDiagonal[0].length-1].parentIndex!=-1){
+    deepestDiagonal=calcMountain(calcDiagonal(deepestDiagonal));
+    diagonalLayers++;
+  }
+  if (diagonalLayers>=50&&!confirm("Calculation is very complex. Are you sure you want to continue?\n計算の再帰が複雑です。本当に実行しますか?")) return;
+  var expansion=expand(mountain,n,true);
+  dg("input").value+="\r\n"+expansion;
+  requestDraw(true);
+  ontabopen["expandOnSite"]();
+}
 var handlekey=function(e){
-  setTimeout(draw,0,true);
+  setTimeout(requestDraw,0,true);
 }
