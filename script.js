@@ -1,5 +1,6 @@
 var canvas;
 var ctx;
+var outimg;
 var cursorstr="▮";
 var cursorendstr="▯";
 var lineBreakRegex=/\r?\n/g;
@@ -8,34 +9,36 @@ window.onload=function (){
   console.clear();
   canvas=dg("output");
   ctx=canvas.getContext("2d");
+  outimg=dg("outimg");
   dg('input').onkeydown=handlekey;
   dg('input').onfocus=handlekey;
   dg('input').onmousedown=handlekey;
   load();
   requestDraw(true);
   drawIntervalLoopFunc();
-  setInterval(function(){if(hasRequestedDraw&&Date.now()-lastDrawByRequest>=1000)requestAnimationFrame(_processDrawRequest);},100);
+  setInterval(function(){if(hasRequestedDraw&&Date.now()-lastDrawTime>=1000)requestAnimationFrame(processDrawRequest);},100);
 }
 function drawIntervalLoopFunc(){
-  setTimeout(function(){if(document.activeElement==dg("input"))requestDraw(true);drawIntervalLoopFunc();},100);
+  if (document.activeElement==document.getElementById("input")) requestDraw();
+  setTimeout(drawIntervalLoopFunc,0);
 }
 var hasRequestedDraw=false;
 var hasRequestedRecalculation=false;
-var lastDrawByRequest=Date.now();
+var lastDrawTime=-1;
 function requestDraw(recalculate){
   hasRequestedRecalculation=hasRequestedRecalculation||recalculate;
   if (!hasRequestedDraw){
-    requestAnimationFrame(_processDrawRequest);
+    requestAnimationFrame(processDrawRequest);
     hasRequestedDraw=true;
   }
 }
-function _processDrawRequest(){
-  if (timesDrawn-doneDrawn>50) return;
-  lastDrawByRequest=Date.now();
+function processDrawRequest(){
+  if (Date.now()-lastDrawTime<10) return;
   try{
+    lastDrawTime=Date.now();
     draw(hasRequestedRecalculation);
   }catch(e){
-    requestAnimationFrame(_processDrawRequest);
+    requestAnimationFrame(processDrawRequest);
     throw e;
   }
   hasRequestedDraw=false;
@@ -164,8 +167,6 @@ var NUMBERTHICKNESS=400;
 var LINEPLACE=1;
 var inputFocused=false;
 var timesDrawn=0;
-var finalDrawn=0;
-var doneDrawn=0;
 function draw(recalculate){
   var inputChanged=input!=dg("input").value;
   var optionChanged=false;
@@ -196,6 +197,8 @@ function draw(recalculate){
     y+=mountain.length*ROWHEIGHT;
   }
   //resize
+  document.getElementById("outputcontainer").style.width=x+"px";
+  document.getElementById("outputcontainer").style.height=y+"px";
   canvas.width=x;
   canvas.height=y;
   ctx.fillStyle="white"; //clear
@@ -204,6 +207,7 @@ function draw(recalculate){
   ctx.strokeStyle="black";
   ctx.lineWidth=+LINETHICKNESS;
   ctx.font=NUMBERTHICKNESS+" "+NUMBERSIZE+"px Arial";
+  ctx.textAlign="center";
   var by=0;
   for (var i=0;i<calculatedMountains.length;i++){
     var mountain=calculatedMountains[i];
@@ -211,7 +215,7 @@ function draw(recalculate){
       var row=mountain[j];
       for (var k=0;k<row.length;k++){
         var point=row[k];
-        ctx.fillText(j==0?point.strexp:point.value,COLUMNWIDTH*(point.position*2+j+1)/2-ctx.measureText(j==0?point.strexp:point.value).width/2,by+ROWHEIGHT*(mountain.length-j)-3);
+        ctx.fillText(j==0?point.strexp:point.value,COLUMNWIDTH*(point.position*2+j+1)/2,by+ROWHEIGHT*(mountain.length-j)-3);
         if (j>0){
           ctx.beginPath();
           ctx.moveTo(COLUMNWIDTH*(point.position*2+j+2)/2,by+ROWHEIGHT*(mountain.length-j+1)-NUMBERSIZE*Math.min(LINEPLACE,1)-(ROWHEIGHT-NUMBERSIZE)*Math.max(LINEPLACE-1,0)-3);
@@ -225,42 +229,55 @@ function draw(recalculate){
     }
     by+=mountain.length*ROWHEIGHT;
   }
-  //enable save
-  if (canvas.toBlob&&Promise&&URL&&URL.createObjectURL){
-    timesDrawn++;
-    (function (timesDrawn){
+  waitAndMakeDownloadableIfInactive(++timesDrawn);
+}
+function waitAndMakeDownloadableIfInactive(timesDrawnThis){
+  swapImageToCanvas();
+  var d=document.getElementById("drawStatus");
+  d.textContent="Downloadable conversion interrupted";
+  setTimeout(function (){
+    if (timesDrawnThis!=timesDrawn) return;
+    //enable save
+    if (canvas.toBlob&&Promise&&URL&&URL.createObjectURL){
+      d.style.display="";
+      d.textContent="Making the image downloadable"
       new Promise(function (resolve,reject){
-        canvas.toBlob(
-          function callback(blob){
-            resolve(blob);
-          },
-          "image/png"
-        );
+        canvas.toBlob(resolve,"image/png");
       }).then(function (blob){
-        doneDrawn++;
-        if (blob&&timesDrawn>finalDrawn){
-          finalDrawn=timesDrawn;
+        if (timesDrawnThis!=timesDrawn) return;
+        if (blob){
           URL.revokeObjectURL(outimg.src);
           outimg.src=URL.createObjectURL(blob);
+          swapImageToImg();
         }
-        updateDrawnStatus();
+        d.style.display="none";
       });
-    })(timesDrawn);
-  }else{
-    outimg.width=canvas.width;
-    outimg.height=canvas.height;
-    outimg.src=canvas.toDataURL('image/png');
-  }
-  updateDrawnStatus();
+    }else{
+      d.style.display="";
+      d.textContent="Making the image downloadable";
+      setTimeout(function (){
+        outimg.width=canvas.width;
+        outimg.height=canvas.height;
+        outimg.src=canvas.toDataURL("image/png");
+        swapImageToImg();
+        d.style.display="none";
+      },0);
+    }
+  },1000);
 }
-function updateDrawnStatus(){
-  var d=dg("drawStatus");
-  if (timesDrawn==doneDrawn){
-    d.style.display="none";
-  }else{
-    d.style.display="";
-    d.innerHTML="Rendering: "+finalDrawn+" - "+doneDrawn+"/"+timesDrawn;
-  }
+function swapImageToCanvas(){
+  var savedScrollX=window.scrollX;
+  var savedScrollY=window.scrollY;
+  canvas.style.display="";
+  outimg.style.display="none";
+  window.scroll(savedScrollX,savedScrollY);
+}
+function swapImageToImg(){
+  var savedScrollX=window.scrollX;
+  var savedScrollY=window.scrollY;
+  canvas.style.display="none";
+  outimg.style.display="";
+  window.scroll(savedScrollX,savedScrollY);
 }
 window.onpopstate=function (e){
   load();
