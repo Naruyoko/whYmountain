@@ -46,20 +46,28 @@
       right:0;
       position:absolute;
     }
+    #optioncontainer>label {
+      margin:0 30px 0 0;
+      display:inline-block;
+    }
+    .optionvalue {
+      min-width:50px;
+      display:inline-block;
+    }
   </style>
   <script src="./script.js"></script>
 </head>
 <body>
   <h1>whY mountain</h1>
-  <form name=form>
+  <form>
     <div id="inputcontainer">
       <div id="inputTab" class="inputTab">
         <textarea id="input" class="sequenceTextContainer" oninput="requestDraw(true)" onfocusin="inputFocused=true" onfocusout="inputFocused=false;requestDraw(true);" contentEditable>1,2,4,8,10,7,12,14,12</textarea>
         <div class="inputFooterContainer">
           <button type="button" onclick="openTab('extractDiagonal')">Extract Diagonal</button>
           <button type="button" onclick="openTab('expandOnSite')">Expand Sequence</button>
-          <button type="button" onclick="if(confirm('Clear sequences?')){dg('input').value='';requestDraw(true);}">Clear</button>
-          <button type="button" onclick="dg('inputcontainer').style.display='none';dg('showinput').style.display='block';">Hide</button>
+          <button type="button" onclick="if(confirm('Clear sequences?')){document.getElementById('input').value='';requestDraw(true);}">Clear</button>
+          <button type="button" onclick="document.getElementById('inputcontainer').style.display='none';document.getElementById('showinput').style.display='block';">Hide</button>
         </div>
       </div>
       <div id="extractDiagonalTab" class="inputTab" style="display:none">
@@ -81,17 +89,21 @@
         </div>
       </div>
     </div>
-    <button id="showinput" type="button" style="position:fixed;right:0;padding:4px;display:none" onclick="dg('inputcontainer').style.display='block';dg('showinput').style.display='none';">Show</button>
-    <div style="width:calc(100% - 500px)">
-      <input id="ROWHEIGHT" style="width:150px" type="range" min=15 max=150 value=32 oninput="requestDraw()">
-      <input id="COLUMNWIDTH" style="width:150px" type="range" min=15 max=150 value=32 oninput="requestDraw()">
-      <input id="LINETHICKNESS" style="width:100px" type="range" min=1 max=15 value=1 oninput="requestDraw()">
-      <input id="NUMBERSIZE" style="width:120px" type="range" min=4 max=96 value=10 oninput="requestDraw()">
-      <input id="NUMBERTHICKNESS" style="width:80px" type="range" min=100 max=900 value=400 step=100 oninput="requestDraw()">
-      <input id="LINEPLACE" style="width:120px" type="range" min=0 max=2 value=1 step=0.01 oninput="requestDraw()">
-      <input type="button" value="Draw" onclick="requestDraw(true)">
-      <input type="button" value="Save (Simple)" onclick="saveSimple(true)">
-      <input type="button" value="Save (Detailed)" onclick="saveDetailed(true)">
+    <button id="showinput" type="button" style="position:fixed;right:0;padding:4px;display:none" onclick="document.getElementById('inputcontainer').style.display='block';document.getElementById('showinput').style.display='none';">Show</button>
+    <div id="controlscontainer" style="width:calc(100% - 500px)">
+      <div id="optioncontainer">
+        <label>ROWHEIGHT <input id="ROWHEIGHT" style="width:150px" type="range" min=15 max=150 value=32 oninput="requestDraw()"> <span id="ROWHEIGHT_value" class="optionvalue">?</span></label>
+        <label>COLUMNWIDTH <input id="COLUMNWIDTH" style="width:150px" type="range" min=15 max=150 value=32 oninput="requestDraw()"> <span id="COLUMNWIDTH_value" class="optionvalue">?</span></label>
+        <label>LINETHICKNESS <input id="LINETHICKNESS" style="width:100px" type="range" min=1 max=15 value=1 oninput="requestDraw()"> <span id="LINETHICKNESS_value" class="optionvalue">?</span></label>
+        <label>NUMBERSIZE <input id="NUMBERSIZE" style="width:120px" type="range" min=4 max=96 value=10 oninput="requestDraw()"> <span id="NUMBERSIZE_value" class="optionvalue">?</span></label>
+        <label>NUMBERTHICKNESS <input id="NUMBERTHICKNESS" style="width:80px" type="range" min=100 max=900 value=400 step=100 oninput="requestDraw()"> <span id="NUMBERTHICKNESS_value" class="optionvalue">?</span></label>
+        <label>LINEPLACE <input id="LINEPLACE" style="width:120px" type="range" min=0 max=2 value=1 step=0.01 oninput="requestDraw()"> <span id="LINEPLACE_value" class="optionvalue">?</span></label>
+      </div>
+      <div>
+        <input type="button" value="Draw" onclick="requestDraw(true)">
+        <input type="button" value="Save (Simple)" onclick="saveSimple(true)">
+        <input type="button" value="Save (Detailed)" onclick="saveDetailed(true)">
+      </div>
       <div id="drawStatus" style="display:none;position:fixed;top:0;right:0;"></div>
       <input type="text" id="copyarea" style="display:none">
     </div>
@@ -102,6 +114,6 @@
   </div>
   <div>Y sequence by Yukito</div>
   <div>Expansion by itself &rarr; <a href="https://naruyoko.github.io/YNySequence/">https://naruyoko.github.io/YNySequence/</a></div>
-  <div>Version upper-branching diagonal-extracting cursor-crawling expanding.1.1</div>
+  <div>Version upper-branching diagonal-extracting cursor-crawling expanding.1.2</div>
 </body>
 </html>

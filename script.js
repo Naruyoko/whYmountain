@@ -7,12 +7,12 @@ var lineBreakRegex=/\r?\n/g;
 var itemSeparatorRegex=/[\t ,]/g;
 window.onload=function (){
   console.clear();
-  canvas=dg("output");
+  canvas=document.getElementById("output");
   ctx=canvas.getContext("2d");
-  outimg=dg("outimg");
-  dg('input').onkeydown=handlekey;
-  dg('input').onfocus=handlekey;
-  dg('input').onmousedown=handlekey;
+  outimg=document.getElementById("outimg");
+  document.getElementById('input').onkeydown=handlekey;
+  document.getElementById('input').onfocus=handlekey;
+  document.getElementById('input').onmousedown=handlekey;
   load();
   requestDraw(true);
   drawIntervalLoopFunc();
@@ -39,9 +39,6 @@ function processDrawRequest(){
   }
   hasRequestedDraw=false;
   hasRequestedRecalculation=false;
-}
-function dg(s){
-  return document.getElementById(s);
 }
 var calculatedMountains=null;
 function parseSequenceElement(s,i){
@@ -70,12 +67,12 @@ function parseSequenceElement(s,i){
     };
   }
 }
+function parseSequenceString(s){
+  return s.split(itemSeparatorRegex).map(parseSequenceElement);
+}
 function calcMountain(s){
-  //if (!/^(\d+,)*\d+$/.test(s)) throw Error("BAD");
   var lastLayer;
-  if (typeof s=="string"){
-    lastLayer=s.split(itemSeparatorRegex).map(parseSequenceElement);
-  }
+  if (typeof s=="string") lastLayer=parseSequenceString(s);
   else lastLayer=s;
   var calculatedMountain=[lastLayer]; //rows
   while (true){
@@ -145,7 +142,7 @@ function getstrexp(s,strremoved){
     }
   }
 }
-function updateMountainString(){
+function updateMountainString(inputc){
   for (var lines=inputc.split(lineBreakRegex),i=0;i<lines.length;i++){
     for (var nums=lines[i].split(itemSeparatorRegex),j=0;j<nums.length;j++){
       calculatedMountains[i][0][j].strexp=getstrexp(nums[j]);
@@ -153,44 +150,61 @@ function updateMountainString(){
   }
 }
 var options=["input","ROWHEIGHT","COLUMNWIDTH","LINETHICKNESS","NUMBERSIZE","NUMBERTHICKNESS","LINEPLACE"];
-var input="";
-var inputc="";
-var ROWHEIGHT=32;
-var COLUMNWIDTH=32;
-var LINETHICKNESS=2;
-var NUMBERSIZE=10;
-var NUMBERTHICKNESS=400;
-var LINEPLACE=1;
+var config={
+  "input":"",
+  "inputc":"",
+  "ROWHEIGHT":0,
+  "COLUMNWIDTH":0,
+  "LINETHICKNESS":0,
+  "NUMBERSIZE":0,
+  "NUMBERTHICKNESS":0,
+  "LINEPLACE":0,
+};
+var displayedConfig=Object.assign({},config);
 var inputFocused=false;
 var timesDrawn=0;
 function draw(recalculate){
-  var inputChanged=input!=dg("input").value;
-  var optionChanged=false;
-  for (var i of options){
-    if (window[i]!=dg(i).value) optionChanged=true;
-    window[i]=dg(i).value;
+  var newConfig=Object.assign({},config);
+  for (var i=0;i<options.length;i++){
+    var optionName=options[i];
+    var newValue;
+    var elem=document.getElementById(optionName);
+    if (elem.type=="number") newValue=+elem.value;
+    else if (elem.type=="text"||optionName=="input") newValue=elem.value;
+    else if (elem.type=="range") newValue=+elem.value;
+    else if (elem.type=="checkbox") newValue=elem.checked;
+    if (config[optionName]!=newValue){
+      newConfig[optionName]=newValue;
+      recalculate=true;
+    }
+    if (displayedConfig[optionName]!=newValue){
+      displayedConfig[optionName]=newValue;
+      if (elem.type=="range") document.getElementById(optionName+"_value").textContent=newValue+"";
+    }
   }
-  var curpos=form.input.selectionStart;
-  var curendpos=form.input.selectionEnd;
-  var newinputc;
+  var sequenceInputElem=document.getElementById("input");
+  var cursorPos=sequenceInputElem.selectionStart;
+  var cursorEndPos=sequenceInputElem.selectionEnd;
   if (!inputFocused){
-    newinputc = input;
-  }else if (curpos==curendpos){
-    newinputc = input.substring(0,curpos)+cursorstr+input.substring(curpos);
+    newConfig["inputc"]=newConfig["input"];
   }else{
-    newinputc = input.substring(0,curpos)+cursorstr+input.substring(curpos,curendpos)+cursorendstr+input.substring(curendpos);
+    if (cursorPos==cursorEndPos){
+      newConfig["inputc"]=newConfig["input"].substring(0,cursorPos)+cursorstr+newConfig["input"].substring(cursorPos);
+    }else{
+      newConfig["inputc"]=newConfig["input"].substring(0,cursorPos)+cursorstr+newConfig["input"].substring(cursorPos,cursorEndPos)+cursorendstr+newConfig["input"].substring(cursorEndPos);
+    }
   }
-  if (!optionChanged&&inputc==newinputc) return;
-  inputc=newinputc;
-  if (recalculate&&inputChanged) calculatedMountains=inputc.split(lineBreakRegex).map(calcMountain);
-  else updateMountainString();
+  if (config["inputc"]!=newConfig["inputc"]) recalculate=true;
+  if (!recalculate) return;
+  if (config["input"]!=newConfig["input"]) calculatedMountains=newConfig["inputc"].split(lineBreakRegex).map(calcMountain);
+  else updateMountainString(newConfig["inputc"]);
   //get image size
   var x=0;
   var y=0;
   for (var i=0;i<calculatedMountains.length;i++){
     var mountain=calculatedMountains[i];
-    x=Math.max(x,mountain[0].length*COLUMNWIDTH);
-    y+=mountain.length*ROWHEIGHT;
+    x=Math.max(x,mountain[0].length*newConfig["COLUMNWIDTH"]);
+    y+=mountain.length*newConfig["ROWHEIGHT"];
   }
   //resize
   document.getElementById("outputcontainer").style.width=x+"px";
@@ -201,8 +215,8 @@ function draw(recalculate){
   ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle="black";
   ctx.strokeStyle="black";
-  ctx.lineWidth=+LINETHICKNESS;
-  ctx.font=NUMBERTHICKNESS+" "+NUMBERSIZE+"px Arial";
+  ctx.lineWidth=+newConfig["LINETHICKNESS"];
+  ctx.font=newConfig["NUMBERTHICKNESS"]+" "+newConfig["NUMBERSIZE"]+"px Arial";
   ctx.textAlign="center";
   var by=0;
   for (var i=0;i<calculatedMountains.length;i++){
@@ -211,21 +225,22 @@ function draw(recalculate){
       var row=mountain[j];
       for (var k=0;k<row.length;k++){
         var point=row[k];
-        ctx.fillText(j==0?point.strexp:point.value,COLUMNWIDTH*(point.position*2+j+1)/2,by+ROWHEIGHT*(mountain.length-j)-3);
+        ctx.fillText(j==0?point.strexp:point.value,newConfig["COLUMNWIDTH"]*(point.position*2+j+1)/2,by+newConfig["ROWHEIGHT"]*(mountain.length-j)-3);
         if (j>0){
           ctx.beginPath();
-          ctx.moveTo(COLUMNWIDTH*(point.position*2+j+2)/2,by+ROWHEIGHT*(mountain.length-j+1)-NUMBERSIZE*Math.min(LINEPLACE,1)-(ROWHEIGHT-NUMBERSIZE)*Math.max(LINEPLACE-1,0)-3);
-          ctx.lineTo(COLUMNWIDTH*(point.position*2+j+1)/2,by+ROWHEIGHT*(mountain.length-j));
+          ctx.moveTo(newConfig["COLUMNWIDTH"]*(point.position*2+j+2)/2,by+newConfig["ROWHEIGHT"]*(mountain.length-j+1)-newConfig["NUMBERSIZE"]*Math.min(newConfig["LINEPLACE"],1)-(newConfig["ROWHEIGHT"]-newConfig["NUMBERSIZE"])*Math.max(newConfig["LINEPLACE"]-1,0)-3);
+          ctx.lineTo(newConfig["COLUMNWIDTH"]*(point.position*2+j+1)/2,by+newConfig["ROWHEIGHT"]*(mountain.length-j));
           var l=0;
           while (mountain[j-1][l].position!=point.position+1) l++;
-          ctx.lineTo(COLUMNWIDTH*(mountain[j-1][mountain[j-1][l].parentIndex].position*2+j)/2,by+ROWHEIGHT*(mountain.length-j+1)-NUMBERSIZE*Math.min(LINEPLACE,1)-(ROWHEIGHT-NUMBERSIZE)*Math.max(LINEPLACE-1,0)-3);
+          ctx.lineTo(newConfig["COLUMNWIDTH"]*(mountain[j-1][mountain[j-1][l].parentIndex].position*2+j)/2,by+newConfig["ROWHEIGHT"]*(mountain.length-j+1)-newConfig["NUMBERSIZE"]*Math.min(newConfig["LINEPLACE"],1)-(newConfig["ROWHEIGHT"]-newConfig["NUMBERSIZE"])*Math.max(newConfig["LINEPLACE"]-1,0)-3);
           ctx.stroke();
         }
       }
     }
-    by+=mountain.length*ROWHEIGHT;
+    by+=mountain.length*newConfig["ROWHEIGHT"];
   }
   waitAndMakeDownloadableIfInactive(++timesDrawn);
+  Object.assign(config,newConfig);
 }
 function waitAndMakeDownloadableIfInactive(timesDrawnThis){
   swapImageToCanvas();
@@ -275,57 +290,7 @@ function swapImageToImg(){
   outimg.style.display="";
   window.scroll(savedScrollX,savedScrollY);
 }
-window.onpopstate=function (e){
-  load();
-  requestDraw(true);
-}
-function saveSimple(clipboard){
-  var encodedInput=input.split(lineBreakRegex).map(e=>e.split(itemSeparatorRegex).map(parseSequenceElement).map(e=>e.forcedParent?e.value+"v"+e.parentIndex:e.value)).join(";");
-  history.pushState(encodedInput,"","?"+encodedInput);
-  if (clipboard){
-    var copyarea=dg("copyarea");
-    copyarea.value=location.href;
-    copyarea.style.display="";
-    copyarea.select();
-    copyarea.setSelectionRange(0,99999);
-    document.execCommand("copy");
-    copyarea.style.display="none";
-  }
-}
-function saveDetailed(clipboard){
-  var state={};
-  for (var i of options){
-    state[i]=window[i];
-  }
-  var encodedState=btoa(JSON.stringify(state)).replace(/\+/g,"-").replace(/\//g,"_").replace(/\=/g,"");
-  history.pushState(state,"","?"+encodedState);
-  if (clipboard){
-    var copyarea=dg("copyarea");
-    copyarea.value=location.href;
-    copyarea.style.display="";
-    copyarea.select();
-    copyarea.setSelectionRange(0,99999);
-    document.execCommand("copy");
-    copyarea.style.display="none";
-  }
-}
-function load(){
-  var encodedState=location.search.substring(1);
-  if (!encodedState) return;
-  try{
-    var state=encodedState.replace(/\-/g,"+").replace(/_/g,"/");
-    if (state.length%4) state+="=".repeat(4-state.length%4);
-    state=JSON.parse(atob(state));
-  }catch (e){ //simple
-    var input=encodedState.replace(/;/g,"\r\n");
-    dg("input").value=input;
-  }finally{ //detailed
-    console.log(state);
-    for (var i of options){
-      if (state[i]) dg(i).value=state[i];
-    }
-  }
-}
+
 function calcDiagonal(mountain){
   var diagonal=[];
   var diagonalTree=[];
@@ -382,10 +347,8 @@ function calcDiagonal(mountain){
     if (p==pw[i]) r.push(diagonal[i]);
     else r.push(diagonal[i]+"v"+p);
   }
-  console.log(diagonalTree);
   return r.join(",");
 }
-
 //By itself -> https://naruyoko.github.io/YNySequence/
 function cloneMountain(mountain){
   var newMountain=[];
@@ -650,15 +613,15 @@ var ontabopen={};
 var tabs=["input","extractDiagonal","expandOnSite"];
 function openTab(name){
   for (var i of tabs){
-    dg(i+"Tab").style.display="none";
+    document.getElementById(i+"Tab").style.display="none";
   }
-  dg(name+"Tab").style.display="";
+  document.getElementById(name+"Tab").style.display="";
   if (ontabopen[name] instanceof Function) ontabopen[name]();
 }
 ontabopen["extractDiagonal"]=function (){
-  var l=dg("extractDiagonal");
+  var l=document.getElementById("extractDiagonal");
   l.innerHTML="";
-  var lines=dg("input").value.split(lineBreakRegex);
+  var lines=document.getElementById("input").value.split(lineBreakRegex);
   for (var i in lines){
     var d=document.createElement("li");
     var e=document.createElement("u");
@@ -670,7 +633,7 @@ ontabopen["extractDiagonal"]=function (){
 }
 function extractDiagonal(line){
   var startTime=Date.now();
-  var lastSequence=dg("input").value.split(lineBreakRegex)[line];
+  var lastSequence=document.getElementById("input").value.split(lineBreakRegex)[line];
   for (var cycles=0;cycles<extractDiagonalModesCount[extractDiagonalMode];cycles++){
     var diagonal=calcDiagonal(calcMountain(lastSequence));
     if (cycles>0){
@@ -682,7 +645,7 @@ function extractDiagonal(line){
     }
     if (extractDiagonalMode==4&&Date.now()-startTime>5000) break;
     lastSequence=diagonal;
-    dg("input").value+="\r\n"+diagonal;
+    document.getElementById("input").value+="\r\n"+diagonal;
   }
   requestDraw(true);
   ontabopen["extractDiagonal"]();
@@ -692,12 +655,12 @@ var extractDiagonalModes=["once","5","10","100","5 seconds"];
 var extractDiagonalModesCount=[1,5,10,100,Infinity];
 function toggleExtractDiagonalMode(){
   extractDiagonalMode=(extractDiagonalMode+1)%extractDiagonalModes.length;
-  dg("toggleExtractDiagonalModeButton").textContent="Mode: "+extractDiagonalModes[extractDiagonalMode];
+  document.getElementById("toggleExtractDiagonalModeButton").textContent="Mode: "+extractDiagonalModes[extractDiagonalMode];
 }
 ontabopen["expandOnSite"]=function (){
-  var l=dg("expandOnSite");
+  var l=document.getElementById("expandOnSite");
   l.innerHTML="";
-  var lines=dg("input").value.split(lineBreakRegex);
+  var lines=document.getElementById("input").value.split(lineBreakRegex);
   for (var i in lines){
     var d=document.createElement("li");
     var e=document.createElement("u");
@@ -708,26 +671,92 @@ ontabopen["expandOnSite"]=function (){
   }
 }
 function expandOnSite(line){
-  var sequence=dg("input").value.split(lineBreakRegex)[line];
-  var n=+dg("expandOnSiteBracketInput").value;
+  var sequence=document.getElementById("input").value.split(lineBreakRegex)[line];
+  var n=+document.getElementById("expandOnSiteBracketInput").value;
   if (!Number.isFinite(n)||n<0) n=0;
   if (n>1000000) n=1000000;
   n=Math.floor(n);
-  if (n>10&&!confirm("n specified is big. Are you sure you want to continue?\n指定されたnは大きいです。本当に実行しますか?")) return;
+  if (n>10&&!confirm("n is big. Are you sure you want to continue?\n大きなnが指定されました。本当に実行しますか?")) return;
   var mountain=calcMountain(sequence);
-  if ((mountain[0][0].value!=1||mountain[0].some(function(e){return !Number.isFinite(e.value)||!Number.isInteger(e.value)||e.value<1||!Number.isFinite(e.parentIndex)||!Number.isInteger(e.parentIndex)||e.parentIndex<-1||e.parentIndex>=mountain[0].length;}))&&!confirm("The sequence is not in domain of Y sequence. An unexpected behavior may occur. Are you sure you want to continue?\nこの数列はY数列の定義外です。本当に実行しますか?")) return;
+  if ((mountain[0][0].value!=1||mountain[0].some(function(e){return !Number.isFinite(e.value)||!Number.isInteger(e.value)||e.value<1||!Number.isFinite(e.parentIndex)||!Number.isInteger(e.parentIndex)||e.parentIndex<-1||e.parentIndex>=mountain[0].length;}))&&!confirm("The sequence is not in domain of Y sequence. An unexpected behavior may occur. Are you sure you want to continue?\nこの数列はY数列の定義域外です。本当に実行しますか?")) return;
   var diagonalLayers=0;
   var deepestDiagonal=mountain;
   while (diagonalLayers<50&&deepestDiagonal[0][deepestDiagonal[0].length-1].parentIndex!=-1){
     deepestDiagonal=calcMountain(calcDiagonal(deepestDiagonal));
     diagonalLayers++;
   }
-  if (diagonalLayers>=50&&!confirm("Calculation is very complex. Are you sure you want to continue?\n計算の再帰が複雑です。本当に実行しますか?")) return;
+  if (diagonalLayers>=50&&!confirm("Calculation is very complex. Are you sure you want to continue?\n計算が複雑です。本当に実行しますか?")) return;
   var expansion=expand(mountain,n,true);
-  dg("input").value+="\r\n"+expansion;
+  document.getElementById("input").value+="\r\n"+expansion;
   requestDraw(true);
   ontabopen["expandOnSite"]();
 }
+
+
+window.onpopstate=function (e){
+  load();
+  requestDraw(true);
+}
+function saveSimple(clipboard){
+  var lines=config["input"].split(lineBreakRegex);
+  var encodedInput="";
+  for (var i=0;i<lines.length;i++){
+    var parsed=parseSequenceString(lines[i]);
+    for (var j=0;j<parsed.length;j++){
+      encodedInput+=parsed[j].forcedParent?parsed[j].value+"v"+parsed[j].parentIndex:parsed[j].value;
+      if (j<parsed.length-1) encodedInput+=",";
+    }
+    if (i<lines.length-1) encodedInput+=";";
+  }
+  history.pushState(encodedInput,"","?"+encodedInput);
+  if (clipboard) copyLocationToClipboard();
+}
+function saveDetailed(clipboard){
+  var state={};
+  for (var i=0;i<options.length;i++){
+    var optionName=options[i];
+    state[optionName]=config[optionName];
+  }
+  var encodedState=btoa(JSON.stringify(state)).replace(/\+/g,"-").replace(/\//g,"_").replace(/\=/g,"");
+  history.pushState(state,"","?"+encodedState);
+  if (clipboard) copyLocationToClipboard();
+}
+function copyLocationToClipboard(){
+  var copyarea=document.getElementById("copyarea");
+  copyarea.value=location.href;
+  copyarea.style.display="";
+  copyarea.select();
+  copyarea.setSelectionRange(0,location.href.length);
+  document.execCommand("copy");
+  copyarea.style.display="none";
+}
+function load(){
+  var encodedState=location.search.substring(1);
+  if (!encodedState) return;
+  try{
+    var state=encodedState.replace(/\-/g,"+").replace(/_/g,"/");
+    if (state.length%4) state+="=".repeat(4-state.length%4);
+    state=JSON.parse(atob(state));
+  }catch (e){ //simple
+    var input=encodedState.replace(/;/g,"\r\n");
+    document.getElementById("input").value=input;
+  }finally{ //detailed
+    if (state instanceof Object){
+      console.log(state);
+      for (var i=0;i<options.length;i++){
+        var optionName=options[i];
+        if (state[optionName]){
+          var elem=document.getElementById(optionName);
+          if (elem.type=="number") elem.value=state[optionName];
+          else if (elem.type=="text"||optionName=="input") elem.value=state[optionName];
+          else if (elem.type=="range") elem.value=state[optionName];
+          else if (elem.type=="checkbox") elem.checked=state[optionName];
+        }
+      }
+    }
+  }
+}
+
 var handlekey=function(e){
   setTimeout(requestDraw,0,true);
 }
